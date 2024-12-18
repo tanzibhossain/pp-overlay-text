@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, user-scalable=no">
   <link rel="icon" href="/favicon.ico">
-  <title>RAK Ceramics - 26th Anniversary Profile Picture Generator</title>
+  <title>Profile Picture Generator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <style>
     body {
@@ -19,8 +18,8 @@
       touch-action: none;
     }
     #canvas {
-      width: 300px;
-      height: 360px;
+      width: 400px;
+      height: 400px;
       border-radius: 20px;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
       border: 1px solid #ddd;
@@ -43,22 +42,26 @@
       gap: 10px;
     }
     button:hover {
-      background-color: #000;
-    }
-    button:focus {
-      outline: none;
+      background-color: #333;
     }
     input[type="file"] {
       display: none;
     }
-    #downloadButton, #resetButton {
+    #downloadButton {
       display: none;
+    }
+    #nameInput {
+      margin-bottom: 10px;
+      padding: 5px 10px;
+      font-size: 16px;
     }
   </style>
 </head>
 <body>
+  <!-- Name Input -->
+  <input type="text" id="nameInput" placeholder="Enter your name" maxlength="20" />
 
-  <canvas id="canvas" width="300" height="360"></canvas>
+  <canvas id="canvas" width="400" height="400"></canvas>
   <input type="file" id="upload" accept="image/*" />
   <div class="button-group">
     <button id="uploadButton"><i class="fa-solid fa-camera"></i> Choose Your Photo</button>
@@ -71,24 +74,22 @@
     const upload = document.getElementById('upload');
     const uploadButton = document.getElementById('uploadButton');
     const downloadButton = document.getElementById('downloadButton');
+    const nameInput = document.getElementById('nameInput');
 
-    // Off-screen canvas for high-resolution download
     const offscreenCanvas = document.createElement('canvas');
-    offscreenCanvas.width = 1000;
+    offscreenCanvas.width = 1200;
     offscreenCanvas.height = 1200;
     const offscreenCtx = offscreenCanvas.getContext('2d');
 
     let image = null;
-    let scale = 1;
-    let position = { x: 0, y: 0 };
+    let scale = 0.6;
+    let position = { x: 40, y: 120 };
     let isDragging = false;
-    let startDragOffset = { x: 0, y: 0 };
-    let initialScale = 1;
-    let initialPosition = { x: 0, y: 0 };
+    let dragOffset = { x: 0, y: 0 };
 
     const overlay = new Image();
     overlay.crossOrigin = 'anonymous';
-    overlay.src = 'frame_rak_ceramics.png';
+    overlay.src = 'frame_new.png';
 
     overlay.onload = () => {
       drawCanvas();
@@ -110,82 +111,91 @@
         image = new Image();
         image.crossOrigin = 'anonymous';
         image.onload = () => {
-          const imageAspectRatio = image.width / image.height;
-          const canvasAspectRatio = canvas.width / canvas.height;
-
-          if (imageAspectRatio > canvasAspectRatio) {
-            initialScale = canvas.height / image.height;
-            initialPosition = {
-              x: (canvas.width - image.width * initialScale) / 2,
-              y: 0,
-            };
-          } else {
-            initialScale = canvas.width / image.width;
-            initialPosition = {
-              x: 0,
-              y: (canvas.height - image.height * initialScale) / 2,
-            };
-          }
-
-          scale = initialScale;
-          position = { ...initialPosition };
-
           drawCanvas();
-          downloadButton.style.display = 'block';
+          toggleDownloadButton();
         };
         image.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
+    downloadButton.addEventListener('click', () => {
+      const dataURL = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = 'profile_picture.png';
+      a.click();
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!image) return;
+
+      const mouseX = e.offsetX;
+      const mouseY = e.offsetY;
+
+      const imgWidth = image.width * scale;
+      const imgHeight = image.height * scale;
+
+      if (
+        mouseX >= position.x &&
+        mouseX <= position.x + imgWidth &&
+        mouseY >= position.y &&
+        mouseY <= position.y + imgHeight
+      ) {
+        isDragging = true;
+        dragOffset.x = mouseX - position.x;
+        dragOffset.y = mouseY - position.y;
+      }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        position.x = e.offsetX - dragOffset.x;
+        position.y = e.offsetY - dragOffset.y;
+        drawCanvas();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+    });
+
+    nameInput.addEventListener('input', () => {
+      drawCanvas();
+      toggleDownloadButton();
+    });
+
     function drawCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (image) {
-        const imgWidth = image.width * scale;
-        const imgHeight = image.height * scale;
+        const imgWidth = 200;
+        const imgHeight = 200;
         ctx.drawImage(image, position.x, position.y, imgWidth, imgHeight);
       }
 
       ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
-    }
 
-    function drawOffscreenCanvas() {
-      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-
-      if (image) {
-        const imgWidth = image.width * scale * (offscreenCanvas.width / canvas.width);
-        const imgHeight = image.height * scale * (offscreenCanvas.height / canvas.height);
-        const posX = position.x * (offscreenCanvas.width / canvas.width);
-        const posY = position.y * (offscreenCanvas.height / canvas.height);
-        offscreenCtx.drawImage(image, posX, posY, imgWidth, imgHeight);
+      const userName = nameInput.value.trim();
+      if (userName) {
+        ctx.font = "14px Arial";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.fillText(userName, canvas.width - 107, (canvas.height / 2) - 20);
       }
-
-      offscreenCtx.drawImage(overlay, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
     }
 
-    // downloadButton.addEventListener('click', () => {
-    //   drawOffscreenCanvas();
-    //   const dataURL = offscreenCanvas.toDataURL('image/png');
-    //   const link = document.createElement('a');
-    //   link.href = dataURL;
-    //   link.download = 'profile_rak_ceramics.png';
-    //   link.click();
-    // });
-
-    downloadButton.addEventListener('click', () => {
-      drawOffscreenCanvas();
-
-      offscreenCanvas.toBlob((blob) => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'profile_rak_ceramics.png';
-        document.body.appendChild(link); // Required for iOS Safari
-        link.click();
-        document.body.removeChild(link); // Clean up
-      }, 'image/png');
-    });
-
+    function toggleDownloadButton() {
+      if (image && nameInput.value.trim()) {
+        downloadButton.style.display = 'block';
+      } else {
+        downloadButton.style.display = 'none';
+      }
+    }
   </script>
 </body>
 </html>
