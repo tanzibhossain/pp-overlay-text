@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <link rel="icon" href="/favicon.ico">
+  <title>RAK Ceramics - 26th Anniversary Profile Picture Generator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    #canvas {
+      width: 300px;
+      height: 360px;
+      border-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      border: 1px solid #ddd;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #000;
+      color: #fff;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    button:hover {
+      background-color: #000;
+    }
+    button:focus {
+      outline: none;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    #downloadButton, #resetButton {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas" width="300" height="360"></canvas>
+  <input type="file" id="upload" accept="image/*" />
+  <div class="button-group">
+    <button id="uploadButton"><i class="fa-solid fa-camera"></i> Choose Your Photo</button>
+    <button id="downloadButton"><i class="fa-solid fa-download"></i> Download Photo</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const upload = document.getElementById('upload');
+    const uploadButton = document.getElementById('uploadButton');
+    const downloadButton = document.getElementById('downloadButton');
+
+    // Off-screen canvas for high-resolution download
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = 1000;
+    offscreenCanvas.height = 1200;
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+
+    let image = null;
+    let scale = 1;
+    let position = { x: 0, y: 0 };
+    let isDragging = false;
+    let startDragOffset = { x: 0, y: 0 };
+    let initialScale = 1;
+    let initialPosition = { x: 0, y: 0 };
+
+    const overlay = new Image();
+    overlay.crossOrigin = 'anonymous';
+    overlay.src = 'frame_rak_ceramics.png';
+
+    overlay.onload = () => {
+      drawCanvas();
+    };
+
+    uploadButton.addEventListener('click', () => {
+      upload.click();
+    });
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        alert("No file selected!");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        image = new Image();
+        image.crossOrigin = 'anonymous';
+        image.onload = () => {
+          const imageAspectRatio = image.width / image.height;
+          const canvasAspectRatio = canvas.width / canvas.height;
+
+          if (imageAspectRatio > canvasAspectRatio) {
+            initialScale = canvas.height / image.height;
+            initialPosition = {
+              x: (canvas.width - image.width * initialScale) / 2,
+              y: 0,
+            };
+          } else {
+            initialScale = canvas.width / image.width;
+            initialPosition = {
+              x: 0,
+              y: (canvas.height - image.height * initialScale) / 2,
+            };
+          }
+
+          scale = initialScale;
+          position = { ...initialPosition };
+
+          drawCanvas();
+          downloadButton.style.display = 'block';
+        };
+        image.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function drawCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (image) {
+        const imgWidth = image.width * scale;
+        const imgHeight = image.height * scale;
+        ctx.drawImage(image, position.x, position.y, imgWidth, imgHeight);
+      }
+
+      ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+    }
+
+    function drawOffscreenCanvas() {
+      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+
+      if (image) {
+        const imgWidth = image.width * scale * (offscreenCanvas.width / canvas.width);
+        const imgHeight = image.height * scale * (offscreenCanvas.height / canvas.height);
+        const posX = position.x * (offscreenCanvas.width / canvas.width);
+        const posY = position.y * (offscreenCanvas.height / canvas.height);
+        offscreenCtx.drawImage(image, posX, posY, imgWidth, imgHeight);
+      }
+
+      offscreenCtx.drawImage(overlay, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    }
+
+    // downloadButton.addEventListener('click', () => {
+    //   drawOffscreenCanvas();
+    //   const dataURL = offscreenCanvas.toDataURL('image/png');
+    //   const link = document.createElement('a');
+    //   link.href = dataURL;
+    //   link.download = 'profile_rak_ceramics.png';
+    //   link.click();
+    // });
+
+    downloadButton.addEventListener('click', () => {
+      drawOffscreenCanvas();
+
+      offscreenCanvas.toBlob((blob) => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'profile_rak_ceramics.png';
+        document.body.appendChild(link); // Required for iOS Safari
+        link.click();
+        document.body.removeChild(link); // Clean up
+      }, 'image/png');
+    });
+
+  </script>
+</body>
+</html>
